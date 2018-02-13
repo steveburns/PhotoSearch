@@ -24,8 +24,12 @@ class PhotosAdapter(private val context: Context, private val presenter: Present
             holder.titleText.text = imageData.title
 
             if (imageData.isPhoto) {
+                // TODO: Can we fix the image control to be at least a minimum size???
+                // TODO: We might want that since sometimes we don't get an image
+                // TODO: Log those so we can see what we have and why it's happening
                 Picasso.with(context).load(imageData.getListImageUrl()).into(holder.imageView)
             } else {
+                // TODO: Replace with something else besides the launcher icon
                 Picasso.with(context).load(R.mipmap.ic_launcher).into(holder.imageView)
             }
         }

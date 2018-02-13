@@ -24,6 +24,7 @@ class MainActivity : AppCompatActivity() {
     lateinit var presenter: Presentation
     val compositeDisposable = CompositeDisposable()
     lateinit var queryTextChangedEmitter: ObservableEmitter<String>
+    lateinit var infiniteScrollListener: InfiniteScrollListener
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,13 +50,15 @@ class MainActivity : AppCompatActivity() {
 
         val adapter = PhotosAdapter(this, presenter)
         rv.adapter = adapter
-        rv.addOnScrollListener(getOnScrollListener(rv))
+        infiniteScrollListener = getOnScrollListener(rv)
+        rv.addOnScrollListener(infiniteScrollListener)
     }
 
     private fun setupTextChangeObservable() {
         val disposable = Observable.create<String>({ emitter -> queryTextChangedEmitter = emitter })
                 .debounce(250, TimeUnit.MILLISECONDS)
                 .subscribe({
+                    System.out.println("Requesting First Page for: $it")
                     requestFirstPage(it)
                 },
                 { throwable ->
@@ -66,9 +69,13 @@ class MainActivity : AppCompatActivity() {
         compositeDisposable.add(disposable)
     }
 
-    private fun getOnScrollListener(recyclerView: RecyclerView): RecyclerView.OnScrollListener {
+    private fun getOnScrollListener(recyclerView: RecyclerView): InfiniteScrollListener {
         return object : InfiniteScrollListener(recyclerView.layoutManager as LinearLayoutManager) {
             override fun onLoadMore(page: Int, totalItemsCount: Int) {
+                // TODO: some posts complained that this method gets called multiple times. Check it out.
+                // TODO: https://gist.github.com/ssinss/e06f12ef66c51252563e
+                // TODO: Look for this post: zfdang commented on Mar 25, 2016
+                // TODO: Notice how he put a synchronize block in the onScrolled method.
                 System.out.println("onLoadMore, page: $page, totalItems: $totalItemsCount")
 
                 // request another page of data.
@@ -100,6 +107,11 @@ class MainActivity : AppCompatActivity() {
                 System.out.println("Query Text changed to: $newText")
                 if (newText != null && newText.length > 2) {
                     queryTextChangedEmitter.onNext(newText)
+                } else {
+                    // We need to reset some stuff
+                    presenter.clearData()
+                    infiniteScrollListener.reset()
+                    recyclerView.adapter.notifyDataSetChanged()
                 }
                 return true // let caller know we handled it
             }
@@ -113,6 +125,7 @@ class MainActivity : AppCompatActivity() {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         {
+                            System.out.println("DONE getting First Page for: $searchTerm")
                             if (it > 0) {
                                 adapter.notifyDataSetChanged()
                             }
@@ -130,6 +143,7 @@ class MainActivity : AppCompatActivity() {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                     {
+                        System.out.println("DONE getting Next Page")
                         if (it > 0) {
                             adapter.notifyItemRangeInserted(curSize, it)
                         }

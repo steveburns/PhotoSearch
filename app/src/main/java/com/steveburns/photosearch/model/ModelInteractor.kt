@@ -6,6 +6,7 @@ interface ModelInteraction {
     fun getImageData(position: Int) : ImageData?
     fun getImageDataPage(searchTerm: String, page: Int = 1) : Single<Int>
     fun getImageDataCount(): Int
+    fun clearData()
 }
 
 class ModelInteractor(
@@ -13,6 +14,11 @@ class ModelInteractor(
         private val networkInteractor: NetworkInteraction) : ModelInteraction {
 
     private var lastRequestedSearchTerm = ""
+
+    override fun clearData() {
+        lastRequestedSearchTerm = ""
+        cacheInteractor.clearData()
+    }
 
     override fun getImageDataCount() = cacheInteractor.getCount()
 
@@ -24,7 +30,7 @@ class ModelInteractor(
                 .getImageDataPage(searchTerm, page)
                 .map({
                     when {
-                        lastRequestedSearchTerm != searchTerm -> 0 // search term changed on us, ignore results
+                        lastRequestedSearchTerm != searchTerm -> 0 // search term changed while we were fetching page, ignore results
                         page == 1 -> cacheInteractor.replaceWith(it)
                         else -> cacheInteractor.appendTo(it)
                     }

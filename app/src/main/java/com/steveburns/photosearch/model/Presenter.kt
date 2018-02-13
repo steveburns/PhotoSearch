@@ -9,13 +9,20 @@ interface Presentation {
     fun getImageData(position: Int) : ImageData?
     fun getFirstPage(searchTerm: String) : Single<Int>
     fun getNextPage() : Single<Int>
+    fun clearData()
 }
 
 class Presenter(private val modelInteractor: ModelInteraction) : Presentation {
-    override fun getImageDataCount() = modelInteractor.getImageDataCount()
+    private var lastPageNumber = 1
+    private var currentSearchTerm = ""
 
-    var lastPageNumber = 1
-    var currentSearchTerm = ""
+    override fun clearData() {
+        lastPageNumber = 1
+        currentSearchTerm = ""
+        modelInteractor.clearData()
+    }
+
+    override fun getImageDataCount() = modelInteractor.getImageDataCount()
 
     override fun getImageData(position: Int) = modelInteractor.getImageData(position)
 

@@ -3,12 +3,14 @@ package com.steveburns.photosearch
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
 
-abstract class InfiniteScrollListener(internal var mLayoutManager: LinearLayoutManager) : RecyclerView.OnScrollListener() {
+
+// TODO: This code needs to be cleaned up. Don't need all these comments. In fact, some of the comments don't see to match the code.
+abstract class InfiniteScrollListener(private var layoutManager: LinearLayoutManager) : RecyclerView.OnScrollListener() {
     // The minimum amount of items to have below your current scroll position
     // before loading more.
-    private val visibleThreshold = 5
+    private val visibleThreshold = 4
     // The current offset index of data you have loaded
-    private var currentPage = 0
+    private var currentPage = 1
     // The total number of items in the dataset after the last load
     private var previousTotalItemCount = 0
     // True if we are still waiting for the last set of data to load.
@@ -16,12 +18,18 @@ abstract class InfiniteScrollListener(internal var mLayoutManager: LinearLayoutM
     // Sets the starting page index
     private val startingPageIndex = 0
 
+    fun reset() {
+        currentPage = 1
+        previousTotalItemCount = 0
+        loading = true
+    }
+
     // This happens many times a second during a scroll, so be wary of the code you place here.
     // We are given a few useful parameters to help us work out if we need to load some more data,
     // but first we check if we are waiting for the previous load to finish.
     override fun onScrolled(view: RecyclerView?, dx: Int, dy: Int) {
-        var lastVisibleItemPosition = mLayoutManager.findLastVisibleItemPosition()
-        val totalItemCount = mLayoutManager.itemCount
+        var lastVisibleItemPosition = layoutManager.findLastVisibleItemPosition()
+        val totalItemCount = layoutManager.itemCount
 
         // If the total item count is zero and the previous isn't, assume the
         // list is invalidated and should be reset back to initial state
