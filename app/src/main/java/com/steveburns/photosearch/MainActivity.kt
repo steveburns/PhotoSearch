@@ -3,6 +3,7 @@ package com.steveburns.photosearch
 import android.app.SearchManager
 import android.content.Context
 import android.os.Bundle
+import android.os.Handler
 import android.support.v4.view.MenuItemCompat
 import android.support.v7.app.AppCompatActivity
 import android.support.v7.widget.LinearLayoutManager
@@ -77,6 +78,13 @@ class MainActivity : AppCompatActivity() {
                 // TODO: Look for this post: zfdang commented on Mar 25, 2016
                 // TODO: Notice how he put a synchronize block in the onScrolled method.
                 System.out.println("onLoadMore, page: $page, totalItems: $totalItemsCount")
+
+                // Tell presenter to have a progress item.
+                presenter.addProgressItem()
+                Handler().post({
+                    System.out.println("Act like we have a progress item...")
+                    recyclerView.adapter.notifyItemInserted(presenter.getImageDataCount())
+                })
 
                 // request another page of data.
                 requestNextPage()

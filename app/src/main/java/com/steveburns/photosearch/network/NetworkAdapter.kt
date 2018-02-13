@@ -14,8 +14,8 @@ object NetworkAdapter {
 
     private fun createService() : ImgurService {
         val builder = OkHttpClient.Builder()
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(10, TimeUnit.SECONDS)
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(15, TimeUnit.SECONDS)
         val client = builder.build()
         val retrofit = Retrofit.Builder()
                 .baseUrl("https://api.imgur.com")

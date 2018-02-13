@@ -10,19 +10,28 @@ interface Presentation {
     fun getFirstPage(searchTerm: String) : Single<Int>
     fun getNextPage() : Single<Int>
     fun clearData()
+    fun addProgressItem()
 }
 
 class Presenter(private val modelInteractor: ModelInteraction) : Presentation {
+
     private var lastPageNumber = 1
     private var currentSearchTerm = ""
+    private var hasProgressItem = false
 
     override fun clearData() {
         lastPageNumber = 1
         currentSearchTerm = ""
+        hasProgressItem = false
         modelInteractor.clearData()
     }
 
-    override fun getImageDataCount() = modelInteractor.getImageDataCount()
+    override fun addProgressItem() {
+        hasProgressItem = true
+    }
+
+    override fun getImageDataCount() =
+         modelInteractor.getImageDataCount() + if (hasProgressItem) 1 else 0
 
     override fun getImageData(position: Int) = modelInteractor.getImageData(position)
 
@@ -34,9 +43,10 @@ class Presenter(private val modelInteractor: ModelInteraction) : Presentation {
                 .subscribeOn(Schedulers.io())
     }
 
-    override fun getNextPage() =
+    override fun getNextPage(): Single<Int> =
             modelInteractor
                     .getImageDataPage(currentSearchTerm, ++lastPageNumber)
+                    .doFinally { hasProgressItem = false }
                     .subscribeOn(Schedulers.io())
 }
 
