@@ -1,7 +1,5 @@
 package com.steveburns.photosearch
 
-import android.app.SearchManager
-import android.content.Context
 import android.os.Bundle
 import android.os.Handler
 import android.support.v4.view.MenuItemCompat
@@ -22,37 +20,37 @@ import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
-    lateinit var presenter: Presentation
-    val compositeDisposable = CompositeDisposable()
-    lateinit var queryTextChangedEmitter: ObservableEmitter<String>
-    lateinit var infiniteScrollListener: InfiniteScrollListener
+    private val SEARCH_TERM_KEY = "SEARCH_TERM_KEY"
+    private val LAST_PAGE_LOADED_KEY = "LAST_PAGE_LOADED_KEY"
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    private lateinit var presenter: Presentation
+    private val compositeDisposable = CompositeDisposable()
+    private lateinit var queryTextChangedEmitter: ObservableEmitter<String>
+    private lateinit var infiniteScrollListener: InfiniteScrollListener
+    private var requestingNextPage = false
+
+
+    override fun onCreate(state: Bundle?) {
+        super.onCreate(state)
         setContentView(R.layout.activity_main)
 
-        setupPhotos()
-    }
-
-    private fun setupPhotos() {
-        // There's less byte code if you access it just once using Kotlin synthetic.
-        //  Look at the Kotlin Bytecode.
-        val rv = recyclerView
-
-        rv.setHasFixedSize(true)
-
-        // TODO: Move this to a Dependency Registry!!!
-        val cacheInteractor = CacheInteractor()
-        val networkInteractor = NetworkInteractor()
-        val modelInteractor = ModelInteractor(cacheInteractor, networkInteractor)
-        presenter = Presenter(modelInteractor)
+        val savedSearchTerm = state?.getString(SEARCH_TERM_KEY) ?: ""
+        val lastPageLoaded = state?.getInt(LAST_PAGE_LOADED_KEY, 1) ?: 1
+        DependencyRegistry.inject(this, savedSearchTerm, lastPageLoaded)
 
         setupTextChangeObservable()
 
-        val adapter = PhotosAdapter(this, presenter)
-        rv.adapter = adapter
-        infiniteScrollListener = getOnScrollListener(rv)
-        rv.addOnScrollListener(infiniteScrollListener)
+        // setup RecyclerView
+        recyclerView.setHasFixedSize(true)
+        recyclerView.adapter = PhotosAdapter(this, presenter)
+        infiniteScrollListener = getOnScrollListener(recyclerView)
+        recyclerView.addOnScrollListener(infiniteScrollListener)
+    }
+
+    // DependencyRegistry calls this method
+    fun provide(presenter: Presentation) {
+        this.presenter = presenter
+        System.out.println("Presenter count of Loaded Images: ${presenter.getImageDataCount()}, term: ${presenter.currentSearchTerm}, page: ${presenter.lastPageNumber}")
     }
 
     private fun setupTextChangeObservable() {
@@ -70,17 +68,38 @@ class MainActivity : AppCompatActivity() {
         compositeDisposable.add(disposable)
     }
 
+    // As property without the subscribe
+//    private val textChangeObservable: Observable<String>
+//        get() = Observable.create<String>({ emitter -> queryTextChangedEmitter = emitter })
+//                    .debounce(250, TimeUnit.MILLISECONDS)
+
+    // As method without subscribe
+//    private fun setupTextChangeObservable() : Observable<String> {
+//        return Observable.create<String>({ emitter -> queryTextChangedEmitter = emitter })
+//                .debounce(250, TimeUnit.MILLISECONDS)
+//    }
+
+    override fun onSaveInstanceState(outState: Bundle?) {
+        outState?.putString(SEARCH_TERM_KEY, presenter.currentSearchTerm)
+        outState?.putInt(LAST_PAGE_LOADED_KEY, presenter.lastPageNumber)
+        super.onSaveInstanceState(outState)
+    }
+
     private fun getOnScrollListener(recyclerView: RecyclerView): InfiniteScrollListener {
         return object : InfiniteScrollListener(recyclerView.layoutManager as LinearLayoutManager) {
             override fun onLoadMore(page: Int, totalItemsCount: Int) {
+
+                if (requestingNextPage) return
+
                 // TODO: some posts complained that this method gets called multiple times. Check it out.
                 // TODO: https://gist.github.com/ssinss/e06f12ef66c51252563e
                 // TODO: Look for this post: zfdang commented on Mar 25, 2016
                 // TODO: Notice how he put a synchronize block in the onScrolled method.
-                System.out.println("onLoadMore, page: $page, totalItems: $totalItemsCount")
+                // TODO: I verified that it is and requestingNextPage flag fixes any bugs arising from it.
+//                System.out.println("onLoadMore, page: $page, totalItems: $totalItemsCount")
 
                 // Tell presenter to have a progress item.
-                presenter.addProgressItem()
+                presenter.hasProgressItem = true
                 Handler().post({
                     System.out.println("Act like we have a progress item...")
                     recyclerView.adapter.notifyItemInserted(presenter.getImageDataCount())
@@ -98,8 +117,18 @@ class MainActivity : AppCompatActivity() {
             val searchItem = menu.findItem(R.id.action_search)
             val searchView = MenuItemCompat.getActionView(searchItem) as SearchView
             searchView.setOnQueryTextListener(getQueryTextListener())
-            val searchManager = getSystemService(Context.SEARCH_SERVICE) as SearchManager
-            searchView.setSearchableInfo(searchManager.getSearchableInfo(componentName))
+
+            // TODO: haha this just causes the search to be rerun on a rotation, but doesn't set
+            // TODO:   the text that's displayed in the SearchView. Lame!
+//            if (presenter.currentSearchTerm.isNotEmpty()) {
+//                // TODO: the "submit" parameter tells the control where or not to submit or just set.
+//                searchView.setQuery(presenter.currentSearchTerm, false)
+//            }
+
+
+            // TODO: according to setSearchableInfo code header we don't need this
+//            val searchManager = getSystemService(Context.SEARCH_SERVICE) as SearchManager
+//            searchView.setSearchableInfo(searchManager.getSearchableInfo(componentName))
         }
         return super.onCreateOptionsMenu(menu)
     }
@@ -145,21 +174,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestNextPage() {
-        val adapter = recyclerView.adapter
-        val curSize = adapter.itemCount
-        val disposable = presenter.getNextPage()
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                    {
-                        System.out.println("DONE getting Next Page")
-                        if (it > 0) {
-                            adapter.notifyItemRangeInserted(curSize, it)
-                        }
-                    },
-                    {
-                        handleError(it)
-                    })
-        compositeDisposable.add(disposable)
+        if (!requestingNextPage) {
+            requestingNextPage = true
+            val adapter = recyclerView.adapter
+            val curSize = adapter.itemCount
+            val disposable = presenter.getNextPage()
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(
+                            {
+                                requestingNextPage = false
+                                System.out.println("DONE getting Next Page")
+                                if (it > 0) {
+                                    adapter.notifyItemRangeInserted(curSize, it)
+                                }
+                            },
+                            {
+                                requestingNextPage = false
+                                handleError(it)
+                            })
+            compositeDisposable.add(disposable)
+        }
     }
 
     private fun handleError(throwable: Throwable) {

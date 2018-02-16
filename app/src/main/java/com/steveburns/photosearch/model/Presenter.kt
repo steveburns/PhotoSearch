@@ -10,24 +10,22 @@ interface Presentation {
     fun getFirstPage(searchTerm: String) : Single<Int>
     fun getNextPage() : Single<Int>
     fun clearData()
-    fun addProgressItem()
+    var hasProgressItem : Boolean
+    var currentSearchTerm : String
+    var lastPageNumber: Int
 }
 
-class Presenter(private val modelInteractor: ModelInteraction) : Presentation {
+class Presenter(private val modelInteractor: ModelInteraction,
+                override var currentSearchTerm: String,
+                override var lastPageNumber: Int) : Presentation {
 
-    private var lastPageNumber = 1
-    private var currentSearchTerm = ""
-    private var hasProgressItem = false
+    override var hasProgressItem: Boolean = false
 
     override fun clearData() {
         lastPageNumber = 1
         currentSearchTerm = ""
         hasProgressItem = false
         modelInteractor.clearData()
-    }
-
-    override fun addProgressItem() {
-        hasProgressItem = true
     }
 
     override fun getImageDataCount() =
@@ -52,11 +50,9 @@ class Presenter(private val modelInteractor: ModelInteraction) : Presentation {
 
 fun ImageData.getListImageUrl() : String {
     if (isPhoto) {
-        val uri = Uri.parse(link)
-        val lastSeg = uri.lastPathSegment
+        val lastSeg = Uri.parse(link).lastPathSegment
         if (!lastSeg.isNullOrBlank()) {
-            val newLastSeg = lastSeg.replace(".", "h.")
-            return link.replace(lastSeg, newLastSeg)
+            return link.replace(lastSeg, lastSeg.replace(".", "h."))
         }
     }
     return link

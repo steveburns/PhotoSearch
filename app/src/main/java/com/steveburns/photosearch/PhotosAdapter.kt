@@ -41,6 +41,7 @@ class PhotosAdapter(private val context: Context, private val presenter: Present
                     Picasso.with(context).load(imageData.getListImageUrl()).into(holder.imageView)
                 } else {
                     // TODO: Replace with something else besides the launcher icon
+                    System.out.println("IS NOT A PHOTO: ${imageData.link}")
                     Picasso.with(context).load(R.mipmap.ic_launcher).into(holder.imageView)
                 }
             }

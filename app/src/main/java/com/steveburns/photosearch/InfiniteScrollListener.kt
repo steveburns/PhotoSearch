@@ -18,6 +18,8 @@ abstract class InfiniteScrollListener(private var layoutManager: LinearLayoutMan
     // Sets the starting page index
     private val startingPageIndex = 0
 
+    // TODO: The state held in this class is probably the reason for the page number getting dorked up when rotating the device.
+    // TODO:   Do we really need all of this state in here? Probably not so we'll refactor to only what's really needed.
     fun reset() {
         currentPage = 1
         previousTotalItemCount = 0
