@@ -26,9 +26,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var presenter: Presentation
     private val compositeDisposable = CompositeDisposable()
     private lateinit var queryTextChangedEmitter: ObservableEmitter<String>
-    private lateinit var infiniteScrollListener: InfiniteScrollListener
     private var requestingNextPage = false
-
+    private var lastQueryText = ""
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -43,7 +42,7 @@ class MainActivity : AppCompatActivity() {
         // setup RecyclerView
         recyclerView.setHasFixedSize(true)
         recyclerView.adapter = PhotosAdapter(this, presenter)
-        infiniteScrollListener = getOnScrollListener(recyclerView)
+        val infiniteScrollListener = getOnScrollListener(recyclerView)
         recyclerView.addOnScrollListener(infiniteScrollListener)
     }
 
@@ -87,16 +86,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun getOnScrollListener(recyclerView: RecyclerView): InfiniteScrollListener {
         return object : InfiniteScrollListener(recyclerView.layoutManager as LinearLayoutManager) {
-            override fun onLoadMore(page: Int, totalItemsCount: Int) {
+            override fun onLoadMore() {
 
-                if (requestingNextPage) return
+                if (requestingNextPage || presenter.lastPageLoaded) {
+                    return
+                }
 
-                // TODO: some posts complained that this method gets called multiple times. Check it out.
-                // TODO: https://gist.github.com/ssinss/e06f12ef66c51252563e
-                // TODO: Look for this post: zfdang commented on Mar 25, 2016
-                // TODO: Notice how he put a synchronize block in the onScrolled method.
-                // TODO: I verified that it is and requestingNextPage flag fixes any bugs arising from it.
-//                System.out.println("onLoadMore, page: $page, totalItems: $totalItemsCount")
+                System.out.println("onLoadMore, page: ${presenter.lastPageNumber}, totalItems: ${presenter.getImageDataCount()}")
 
                 // Tell presenter to have a progress item.
                 presenter.hasProgressItem = true
@@ -142,12 +138,12 @@ class MainActivity : AppCompatActivity() {
 
             override fun onQueryTextChange(newText: String?): Boolean {
                 System.out.println("Query Text changed to: $newText")
+                lastQueryText = newText ?: ""
                 if (newText != null && newText.length > 2) {
                     queryTextChangedEmitter.onNext(newText)
                 } else {
                     // We need to reset some stuff
                     presenter.clearData()
-                    infiniteScrollListener.reset()
                     recyclerView.adapter.notifyDataSetChanged()
                 }
                 return true // let caller know we handled it
@@ -190,6 +186,7 @@ class MainActivity : AppCompatActivity() {
                             },
                             {
                                 requestingNextPage = false
+                                adapter.notifyDataSetChanged() // remove spinner item
                                 handleError(it)
                             })
             compositeDisposable.add(disposable)
@@ -197,10 +194,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleError(throwable: Throwable) {
-        // TODO: put some good logging here
-        System.out.println(throwable.message)
-        val toast = Toast.makeText(this@MainActivity, "There was an error. Check your network", Toast.LENGTH_SHORT)
-        toast.show()
+        if (lastQueryText == presenter.currentSearchTerm) {
+            // TODO: put some good logging here
+            System.out.println(throwable.message)
+            val toast = Toast.makeText(this@MainActivity, "There was an error. Check your network", Toast.LENGTH_SHORT)
+            toast.show()
+        }
     }
 
     override fun onDestroy() {

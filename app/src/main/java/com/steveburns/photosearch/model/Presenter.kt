@@ -13,15 +13,18 @@ interface Presentation {
     var hasProgressItem : Boolean
     var currentSearchTerm : String
     var lastPageNumber: Int
+    var lastPageLoaded: Boolean
 }
 
 class Presenter(private val modelInteractor: ModelInteraction,
                 override var currentSearchTerm: String,
                 override var lastPageNumber: Int) : Presentation {
 
+    override var lastPageLoaded: Boolean = false
     override var hasProgressItem: Boolean = false
 
     override fun clearData() {
+        lastPageLoaded = false
         lastPageNumber = 1
         currentSearchTerm = ""
         hasProgressItem = false
@@ -34,6 +37,7 @@ class Presenter(private val modelInteractor: ModelInteraction,
     override fun getImageData(position: Int) = modelInteractor.getImageData(position)
 
     override fun getFirstPage(searchTerm: String) : Single<Int> {
+        lastPageLoaded = false
         lastPageNumber = 1
         currentSearchTerm = searchTerm.toLowerCase()
         return modelInteractor
@@ -43,11 +47,15 @@ class Presenter(private val modelInteractor: ModelInteraction,
 
     override fun getNextPage(): Single<Int> =
             modelInteractor
-                    .getImageDataPage(currentSearchTerm, ++lastPageNumber)
-                    .doFinally { hasProgressItem = false }
+                    .getImageDataPage(currentSearchTerm, lastPageNumber + 1)
+                    .doOnSuccess({ ++lastPageNumber }) // increment only if we actually got the next page (we could get an error or there may not be another page)
+                    .doOnError({ lastPageLoaded = true }) // TODO: this could happen because of bad network or last page really was loaded
+                    // TODO:  we need a way to identify which one it was. This requires us to change the NetworkAdapter to tell us that.
+                    .doFinally({ hasProgressItem = false })
                     .subscribeOn(Schedulers.io())
 }
 
+// Extension function that constructs the URI to the image best suited for the list of photos
 fun ImageData.getListImageUrl() : String {
     if (isPhoto) {
         val lastSeg = Uri.parse(link).lastPathSegment
