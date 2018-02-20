@@ -48,6 +48,12 @@ class MainActivity : AppCompatActivity() {
         recyclerView.addOnScrollListener(infiniteScrollListener)
     }
 
+    // DependencyRegistry calls this method
+    fun provide(presenter: Presentation, navigationCoordinator: NavigationCoordination) {
+        this.presenter = presenter
+        this.navigationCoordinator = navigationCoordinator
+    }
+
     private fun createPhotosAdapter(activity: Activity) : PhotosAdapter {
         return object : PhotosAdapter(activity, presenter) {
             override fun onItemClicked(position: Int) {
@@ -56,38 +62,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // DependencyRegistry calls this method
-    fun provide(presenter: Presentation, navigationCoordinator: NavigationCoordination) {
-        this.presenter = presenter
-        this.navigationCoordinator = navigationCoordinator
-        System.out.println("Presenter count of Loaded Images: ${presenter.getImageDataCount()}, term: ${presenter.currentSearchTerm}, page: ${presenter.lastPageNumber}")
-    }
-
     private fun setupTextChangeObservable() {
         val disposable = Observable.create<String>({ emitter -> queryTextChangedEmitter = emitter })
                 .debounce(250, TimeUnit.MILLISECONDS)
                 .subscribe({
-                    System.out.println("Requesting First Page for: $it")
                     requestFirstPage(it)
                 },
                 { throwable ->
-                    // TODO: put some good logging here
                     System.out.println(throwable.message)
                 })
 
         compositeDisposable.add(disposable)
     }
-
-    // As property without the subscribe
-//    private val textChangeObservable: Observable<String>
-//        get() = Observable.create<String>({ emitter -> queryTextChangedEmitter = emitter })
-//                    .debounce(250, TimeUnit.MILLISECONDS)
-
-    // As method without subscribe
-//    private fun setupTextChangeObservable() : Observable<String> {
-//        return Observable.create<String>({ emitter -> queryTextChangedEmitter = emitter })
-//                .debounce(250, TimeUnit.MILLISECONDS)
-//    }
 
     override fun onSaveInstanceState(outState: Bundle?) {
         outState?.putString(SEARCH_TERM_KEY, presenter.currentSearchTerm)
@@ -103,15 +89,12 @@ class MainActivity : AppCompatActivity() {
                     return
                 }
 
-                System.out.println("onLoadMore, page: ${presenter.lastPageNumber}, totalItems: ${presenter.getImageDataCount()}")
-
                 if (presenter.getImageDataCount() > 0) {
                     // Tell presenter to have a progress item.
                     presenter.hasProgressItem = true
                 }
 
                 Handler().post({
-                    System.out.println("Act like we have a progress item...")
                     recyclerView.adapter.notifyItemInserted(presenter.getImageDataCount())
                 })
 
@@ -127,18 +110,6 @@ class MainActivity : AppCompatActivity() {
             val searchItem = menu.findItem(R.id.action_search)
             val searchView = MenuItemCompat.getActionView(searchItem) as SearchView
             searchView.setOnQueryTextListener(getQueryTextListener())
-
-            // TODO: haha this just causes the search to be rerun on a rotation, but doesn't set
-            // TODO:   the text that's displayed in the SearchView. Lame!
-//            if (presenter.currentSearchTerm.isNotEmpty()) {
-//                // TODO: the "submit" parameter tells the control where or not to submit or just set.
-//                searchView.setQuery(presenter.currentSearchTerm, false)
-//            }
-
-
-            // TODO: according to setSearchableInfo code header we don't need this
-//            val searchManager = getSystemService(Context.SEARCH_SERVICE) as SearchManager
-//            searchView.setSearchableInfo(searchManager.getSearchableInfo(componentName))
         }
         return super.onCreateOptionsMenu(menu)
     }
@@ -146,12 +117,10 @@ class MainActivity : AppCompatActivity() {
     private fun getQueryTextListener() : SearchView.OnQueryTextListener {
         return object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
-                System.out.println("Query Submit tapped. Text is: $query")
                 return false // let SearchView perform the default action (close the keyboard)
             }
 
             override fun onQueryTextChange(newText: String?): Boolean {
-                System.out.println("Query Text changed to: $newText")
                 lastQueryText = newText ?: ""
                 if (newText != null && newText.length > 2) {
                     queryTextChangedEmitter.onNext(newText)
@@ -172,7 +141,6 @@ class MainActivity : AppCompatActivity() {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         {
-                            System.out.println("DONE getting First Page for: $searchTerm")
                             if (it > 0) {
                                 adapter.notifyDataSetChanged()
                             }
@@ -193,7 +161,6 @@ class MainActivity : AppCompatActivity() {
                     .subscribe(
                             {
                                 requestingNextPage = false
-                                System.out.println("DONE getting Next Page")
                                 if (it > 0) {
                                     adapter.notifyItemRangeInserted(curSize, it)
                                 }
@@ -209,16 +176,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleError(throwable: Throwable) {
         if (lastQueryText == presenter.currentSearchTerm) {
-            // TODO: put some good logging here
-            System.out.println(throwable.message)
-            val toast = Toast.makeText(this@MainActivity, "There was an error. Check your network", Toast.LENGTH_SHORT)
+            val toast = Toast.makeText(this, "There was an error. Check your network", Toast.LENGTH_SHORT)
             toast.show()
         }
     }
 
     override fun onDestroy() {
-
-        // TODO: Should this be done in onDestroy?????
         super.onDestroy()
         compositeDisposable.clear()
     }

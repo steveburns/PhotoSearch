@@ -34,18 +34,12 @@ abstract class PhotosAdapter(private val context: Context, private val presenter
             if (imageData != null) {
                 holder.titleText.text = imageData.title
                 holder.itemView.setOnClickListener({
-                    System.out.println("Card was tapped: position: $position, Image: ${imageData.link}, Title: ${imageData.title}")
                     onItemClicked(position)
                 })
 
                 if (imageData.isPhoto) {
-                    // TODO: Can we fix the image control to be at least a minimum size???
-                    // TODO: We might want that since sometimes we don't get an image
-                    // TODO: Log those so we can see what we have and why it's happening
                     Picasso.with(context).load(imageData.getListImageUrl()).into(holder.imageView)
                 } else {
-                    // TODO: Replace with something else besides the launcher icon
-                    System.out.println("IS NOT A PHOTO: ${imageData.link}")
                     Picasso.with(context).load(R.mipmap.ic_launcher).into(holder.imageView)
                 }
             }

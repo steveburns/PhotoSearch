@@ -49,8 +49,9 @@ class Presenter(private val modelInteractor: ModelInteraction,
             modelInteractor
                     .getImageDataPage(currentSearchTerm, lastPageNumber + 1)
                     .doOnSuccess({ ++lastPageNumber }) // increment only if we actually got the next page (we could get an error or there may not be another page)
-                    .doOnError({ lastPageLoaded = true }) // TODO: this could happen because of bad network or last page really was loaded
+                    .doOnError({ lastPageLoaded = true }) // TODO: (enhancement) this could happen because of bad network or last page was already loaded.
                     // TODO:  we need a way to identify which one it was. This requires us to change the NetworkAdapter to tell us that.
+                    // TODO:  we'll probably need to do that by means of a custom converter.
                     .doFinally({ hasProgressItem = false })
                     .subscribeOn(Schedulers.io())
 }

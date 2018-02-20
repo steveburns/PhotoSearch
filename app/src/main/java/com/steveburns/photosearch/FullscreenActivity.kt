@@ -65,7 +65,7 @@ class FullscreenActivity : AppCompatActivity() {
 
                 titleView.text = it.title
 
-                System.out.println("Loading this into FullScreen: ${it.link}")
+                // TODO: (Enhancement) If this is a video then play it.
                 Picasso.with(this).load(it.link).into(imageView)
             }
         }

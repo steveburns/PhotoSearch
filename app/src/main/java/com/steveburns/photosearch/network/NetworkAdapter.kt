@@ -21,7 +21,7 @@ object NetworkAdapter {
                 .baseUrl("https://api.imgur.com")
                 .client(client)
                 .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
-                .addConverterFactory(GsonConverterFactory.create()) // TODO: may need to create custom converter for network errors
+                .addConverterFactory(GsonConverterFactory.create())
                 .build()
 
         return retrofit.create(ImgurService::class.java)
