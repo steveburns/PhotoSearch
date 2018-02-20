@@ -14,7 +14,7 @@ import android.widget.ProgressBar
 
 
 
-class PhotosAdapter(private val context: Context, private val presenter: Presentation) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+abstract class PhotosAdapter(private val context: Context, private val presenter: Presentation) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val VIEW_TYPE_ITEM = 0
     private val VIEW_TYPE_LOADING = 1
@@ -33,6 +33,10 @@ class PhotosAdapter(private val context: Context, private val presenter: Present
             val imageData = presenter.getImageData(position)
             if (imageData != null) {
                 holder.titleText.text = imageData.title
+                holder.itemView.setOnClickListener({
+                    System.out.println("Card was tapped: position: $position, Image: ${imageData.link}, Title: ${imageData.title}")
+                    onItemClicked(position)
+                })
 
                 if (imageData.isPhoto) {
                     // TODO: Can we fix the image control to be at least a minimum size???
@@ -60,6 +64,8 @@ class PhotosAdapter(private val context: Context, private val presenter: Present
             LoadingViewHolder(progressView)
         }
     }
+
+    abstract fun onItemClicked(position: Int)
 }
 
 

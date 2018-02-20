@@ -1,9 +1,6 @@
 package com.steveburns.photosearch
 
-import com.steveburns.photosearch.model.CacheInteractor
-import com.steveburns.photosearch.model.ModelInteractor
-import com.steveburns.photosearch.model.NetworkInteractor
-import com.steveburns.photosearch.model.Presenter
+import com.steveburns.photosearch.model.*
 
 class DependencyRegistry {
 
@@ -14,8 +11,17 @@ class DependencyRegistry {
             val networkInteractor = NetworkInteractor()
             val modelInteractor = ModelInteractor(cacheInteractor, networkInteractor)
             val presenter = Presenter(modelInteractor, searchTerm, lastPageNumber)
-            activity.provide(presenter)
+            val navigationCoordinator = NavigationCoordinator()
+            activity.provide(presenter, navigationCoordinator)
         }
 
+        // FullscreenActivity dependencies
+        fun inject(activity: FullscreenActivity) {
+            val cacheInteractor = CacheInteractor()
+            val networkInteractor = NetworkInteractor()
+            val modelInteractor = ModelInteractor(cacheInteractor, networkInteractor)
+            val presenter = FullScreenPresenter(modelInteractor)
+            activity.provide(presenter)
+        }
     }
 }

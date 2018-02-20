@@ -1,5 +1,6 @@
 package com.steveburns.photosearch
 
+import android.app.Activity
 import android.os.Bundle
 import android.os.Handler
 import android.support.v4.view.MenuItemCompat
@@ -24,6 +25,7 @@ class MainActivity : AppCompatActivity() {
     private val LAST_PAGE_LOADED_KEY = "LAST_PAGE_LOADED_KEY"
 
     private lateinit var presenter: Presentation
+    private lateinit var navigationCoordinator: NavigationCoordination
     private val compositeDisposable = CompositeDisposable()
     private lateinit var queryTextChangedEmitter: ObservableEmitter<String>
     private var requestingNextPage = false
@@ -41,14 +43,23 @@ class MainActivity : AppCompatActivity() {
 
         // setup RecyclerView
         recyclerView.setHasFixedSize(true)
-        recyclerView.adapter = PhotosAdapter(this, presenter)
+        recyclerView.adapter = createPhotosAdapter(this)
         val infiniteScrollListener = getOnScrollListener(recyclerView)
         recyclerView.addOnScrollListener(infiniteScrollListener)
     }
 
+    private fun createPhotosAdapter(activity: Activity) : PhotosAdapter {
+        return object : PhotosAdapter(activity, presenter) {
+            override fun onItemClicked(position: Int) {
+                navigationCoordinator.searchItemWasTapped(activity, position)
+            }
+        }
+    }
+
     // DependencyRegistry calls this method
-    fun provide(presenter: Presentation) {
+    fun provide(presenter: Presentation, navigationCoordinator: NavigationCoordination) {
         this.presenter = presenter
+        this.navigationCoordinator = navigationCoordinator
         System.out.println("Presenter count of Loaded Images: ${presenter.getImageDataCount()}, term: ${presenter.currentSearchTerm}, page: ${presenter.lastPageNumber}")
     }
 
@@ -94,8 +105,11 @@ class MainActivity : AppCompatActivity() {
 
                 System.out.println("onLoadMore, page: ${presenter.lastPageNumber}, totalItems: ${presenter.getImageDataCount()}")
 
-                // Tell presenter to have a progress item.
-                presenter.hasProgressItem = true
+                if (presenter.getImageDataCount() > 0) {
+                    // Tell presenter to have a progress item.
+                    presenter.hasProgressItem = true
+                }
+
                 Handler().post({
                     System.out.println("Act like we have a progress item...")
                     recyclerView.adapter.notifyItemInserted(presenter.getImageDataCount())
